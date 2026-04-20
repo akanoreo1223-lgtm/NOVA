@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ノート管理アプリ</title>
+    <title>NOVA</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
@@ -60,6 +60,11 @@
             font-size: 1em;
         }
 
+        /* ★ 修正：パスワード欄がボタンを覆わないようにする */
+        #new-file-pass {
+            width: 200px;
+        }
+
         #note-editor {
             width: 100%;
             height: 600px;
@@ -91,7 +96,7 @@
 <body>
 
 <header>
-    ノート管理アプリ
+    NOVA
 </header>
 
 <main>
@@ -117,13 +122,11 @@
         <div class="input-area">
             <input id="new-file-name" type="text" placeholder="新しいファイル名">
 
-            <!-- ロックON/OFF -->
             <label>
                 <input type="checkbox" id="lock-file-check">
                 ロックする
             </label>
 
-            <!-- パスワード入力欄 -->
             <input id="new-file-pass" type="password" placeholder="パスワード（任意）" style="display:none;">
 
             <button id="add-file-btn">追加</button>
@@ -170,6 +173,47 @@ let currentFile = null;
 let currentNote = null;
 
 /* ① ジャンル表示 */
+function renderGenres() {
+    const list = document.getElementById("genre-list");
+    list.innerHTML = "";
+
+    for (let genre in data) {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+            <span>${genre}</span>
+            <div>
+                <button onclick="openGenre('${genre}')">開く</button>
+                <button onclick="deleteGenre('${genre}')">削除</button>
+            </div>
+        `;
+        list.appendChild(div);
+    }
+}
+
+document.getElementById("add-genre-btn").onclick = () => {
+    const name = document.getElementById("new-genre-name").value.trim();
+    if (!name) return;
+
+    if (!data[name]) data[name] = {};
+    saveData();
+    renderGenres();
+    document.getElementById("new-genre-name").value = "";
+};
+
+function deleteGenre(name) {
+    delete data[name];
+    saveData();
+    renderGenres();
+}
+
+function openGenre(name) {
+    currentGenre = name;
+    document.getElementById("genre-section").style.display = "none";
+    document.getElementById("file-section").style.display = "block";
+    renderFiles();
+}
+
 /* ② ファイル表示 */
 function renderFiles() {
     const list = document.getElementById("file-list");
@@ -262,6 +306,51 @@ function renderNotes() {
 
     for (let note in notes) {
         if (note.startsWith("_")) continue;
+
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+            <span>${note}</span>
+            <div>
+                <button onclick="editNote('${note}')">編集</button>
+                <button onclick="deleteNote('${note}')">削除</button>
+            </div>
+        `;
+        list.appendChild(div);
+    }
+}
+
+document.getElementById("add-note-btn").onclick = () => {
+    const title = document.getElementById("new-note-title").value.trim();
+    if (!title) return;
+
+    data[currentGenre][currentFile][title] = "";
+    saveData();
+    renderNotes();
+    document.getElementById("new-note-title").value = "";
+};
+
+function deleteNote(title) {
+    delete data[currentGenre][currentFile][title];
+    saveData();
+    renderNotes();
+}
+
+function editNote(title) {
+    currentNote = title;
+    document.getElementById("note-section").style.display = "none";
+    document.getElementById("editor-section").style.display = "block";
+
+    document.getElementById("editor-title").innerText = "ノート編集：" + title;
+    document.getElementById("note-editor").value =
+        data[currentGenre][currentFile][title];
+}
+
+document.getElementById("back-to-file").onclick = () => {
+    document.getElementById("note-section").style.display = "none";
+    document.getElementById("file-section").style.display = "block";
+};
+
 /* ④ ノート編集 */
 document.getElementById("save-note-btn").onclick = () => {
     const text = document.getElementById("note-editor").value;
