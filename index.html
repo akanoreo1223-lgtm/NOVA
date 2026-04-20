@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ノート管理アプリ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        /* 全体の背景（暖オレンジ） */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #FFE4B5; /* 暖オレンジ */
+            font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+        }
+
+        /* ヘッダー */
+        header {
+            background: #FFB347;
+            padding: 15px;
+            text-align: center;
+            color: #fff;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        /* セクション共通 */
+        section {
+            padding: 20px;
+            margin: 20px;
+            background: #fff8ee;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #d46a00;
+        }
+
+        button {
+            background: #ff9a3c;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #ff7f00;
+        }
+
+        input {
+            padding: 8px;
+            border: 1px solid #d8a56a;
+            border-radius: 6px;
+            width: 60%;
+            margin-right: 8px;
+        }
+
+        #note-editor {
+            width: 100%;
+            height: 300px;
+            padding: 10px;
+            border: 1px solid #d8a56a;
+            border-radius: 8px;
+            background: #fffdf8;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .item {
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #e0c7a8;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item button {
+            margin-left: 6px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    ノート管理アプリ
+</header>
+
+<main>
+
+    <!-- ① ジャンル一覧 -->
+    <section id="genre-section">
+        <h2>ジャンル</h2>
+
+        <div id="genre-list"></div>
+
+        <div class="input-area">
+            <input id="new-genre-name" type="text" placeholder="新しいジャンル名">
+            <button id="add-genre-btn">追加</button>
+        </div>
+    </section>
+
+    <!-- ② ファイル一覧 -->
+    <section id="file-section" style="display:none;">
+        <h2 id="file-title">ファイル</h2>
+
+        <div id="file-list"></div>
+
+        <div class="input-area">
+            <input id="new-file-name" type="text" placeholder="新しいファイル名">
+            <button id="add-file-btn">追加</button>
+        </div>
+
+        <button id="back-to-genre">← ジャンルに戻る</button>
+    </section>
+
+    <!-- ③ ノート一覧 -->
+    <section id="note-section" style="display:none;">
+        <h2 id="note-title">ノート</h2>
+
+        <div id="note-list"></div>
+
+        <div class="input-area">
+            <input id="new-note-title" type="text" placeholder="新しいノートのタイトル">
+            <button id="add-note-btn">追加</button>
+        </div>
+
+        <button id="back-to-file">← ファイルに戻る</button>
+    </section>
+
+    <!-- ④ ノート編集 -->
+    <section id="editor-section" style="display:none;">
+        <h2 id="editor-title">ノート編集</h2>
+
+        <textarea id="note-editor"></textarea>
+
+        <button id="save-note-btn">保存</button>
+        <button id="back-to-notes">← ノート一覧に戻る</button>
+    </section>
+
+</main>
+
+<script>
+/* -------------------------
+   データ保存（localStorage）
+-------------------------- */
+let data = JSON.parse(localStorage.getItem("noteAppData") || "{}");
+
+function saveData() {
+    localStorage.setItem("noteAppData", JSON.stringify(data));
+}
+
+/* -------------------------
+   現在の選択状態
+-------------------------- */
+let currentGenre = null;
+let currentFile = null;
+let currentNote = null;
+
+/* -------------------------
+   ① ジャンル表示
+-------------------------- */
+function renderGenres() {
+    const list = document.getElementById("genre-list");
+    list.innerHTML = "";
+
+    for (let genre in data) {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+            <span>${genre}</span>
+            <div>
+                <button onclick="openGenre('${genre}')">開く</button>
+                <button onclick="deleteGenre('${genre}')">削除</button>
+            </div>
+        `;
+        list.appendChild(div);
+    }
+}
+
+document.getElementById("add-genre-btn").onclick = () => {
+    const name = document.getElementById("new-genre-name").value.trim();
+    if (!name) return;
+
+    if (!data[name]) data[name] = {};
+    saveData();
+    renderGenres();
+    document.getElementById("new-genre-name").value = "";
+};
+
+function deleteGenre(name) {
+    delete data[name];
+    saveData();
+    renderGenres();
+}
+
+function openGenre(name) {
+    currentGenre = name;
+    document.getElementById("genre-section").style.display = "none";
+    document.getElementById("file-section").style.display = "block";
+    renderFiles();
+}
+
+/* -------------------------
+   ② ファイル表示
+-------------------------- */
+function renderFiles() {
+    const list = document.getElementById("file-list");
+    list.innerHTML = "";
+
+    const files = data[currentGenre];
+
+    for (let file in files) {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+            <span>${file}</span>
+            <div>
+                <button onclick="openFile('${file}')">開く</button>
+                <button onclick="deleteFile('${file}')">削除</button>
+            </div>
+        `;
+        list.appendChild(div);
+    }
+}
+
+document.getElementById("add-file-btn").onclick = () => {
+    const name = document.getElementById("new-file-name").value.trim();
+    if (!name) return;
+
+    if (!data[currentGenre][name]) data[currentGenre][name] = {};
+    saveData();
+    renderFiles();
+    document.getElementById("new-file-name").value = "";
+};
+
+function deleteFile(name) {
+    delete data[currentGenre][name];
+    saveData();
+    renderFiles();
+}
+
+function openFile(name) {
+    currentFile = name;
+    document.getElementById("file-section").style.display = "none";
+    document.getElementById("note-section").style.display = "block";
+    renderNotes();
+}
+
+document.getElementById("back-to-genre").onclick = () => {
+    document.getElementById("file-section").style.display = "none";
+    document.getElementById("genre-section").style.display = "block";
+};
+
+/* -------------------------
+   ③ ノート表示
+-------------------------- */
+function renderNotes() {
+    const list = document.getElementById("note-list");
+    list.innerHTML = "";
+
+    const notes = data[currentGenre][currentFile];
+
+    for (let note in notes) {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+            <span>${note}</span>
+            <div>
+                <button onclick="editNote('${note}')">編集</button>
+                <button onclick="deleteNote('${note}')">削除</button>
+            </div>
+        `;
+        list.appendChild(div);
+    }
+}
+
+document.getElementById("add-note-btn").onclick = () => {
+    const title = document.getElementById("new-note-title").value.trim();
+    if (!title) return;
+
+    data[currentGenre][currentFile][title] = "";
+    saveData();
+    renderNotes();
+    document.getElementById("new-note-title").value = "";
+};
+
+function deleteNote(title) {
+    delete data[currentGenre][currentFile][title];
+    saveData();
+    renderNotes();
+}
+
+function editNote(title) {
+    currentNote = title;
+    document.getElementById("note-section").style.display = "none";
+    document.getElementById("editor-section").style.display = "block";
+
+    document.getElementById("editor-title").innerText = "ノート編集：" + title;
+    document.getElementById("note-editor").value =
+        data[currentGenre][currentFile][title];
+}
+
+document.getElementById("back-to-file").onclick = () => {
+    document.getElementById("note-section").style.display = "none";
+    document.getElementById("file-section").style.display = "block";
+};
+
+/* -------------------------
+   ④ ノート編集
+-------------------------- */
+document.getElementById("save-note-btn").onclick = () => {
+    const text = document.getElementById("note-editor").value;
+    data[currentGenre][currentFile][currentNote] = text;
+    saveData();
+};
+
+document.getElementById("back-to-notes").onclick = () => {
+    document.getElementById("editor-section").style.display = "none";
+    document.getElementById("note-section").style.display = "block";
+};
+
+/* 初期表示 */
+renderGenres();
+</script>
+
+</body>
+</html>
+
+2026年4月20日(月) 20:28 赤之玲央 <akano.reo1223@gmail.com>:
+
+
