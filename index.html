@@ -60,7 +60,6 @@
             font-size: 1em;
         }
 
-        /* ★ 修正：パスワード欄がボタンを覆わないようにする */
         #new-file-pass {
             width: 200px;
         }
@@ -122,9 +121,9 @@
         <div class="input-area">
             <input id="new-file-name" type="text" placeholder="新しいファイル名">
 
+            <!-- UI位置修正：ロックする → パス → 追加 -->
             <label>
-                <input type="checkbox" id="lock-file-check">
-                ロックする
+                ロックする <input type="checkbox" id="lock-file-check">
             </label>
 
             <input id="new-file-pass" type="password" placeholder="パスワード（任意）" style="display:none;">
@@ -231,6 +230,7 @@ function renderFiles() {
             <span>${file} ${isLocked ? "🔒" : ""}</span>
             <div>
                 <button onclick="openFile('${file}')">開く</button>
+                ${isLocked ? `<button onclick="resetPass('${file}')">パス変更</button>` : ""}
                 <button onclick="deleteFile('${file}')">削除</button>
             </div>
         `;
@@ -238,11 +238,13 @@ function renderFiles() {
     }
 }
 
+/* ロックON/OFFでパス欄表示 */
 document.getElementById("lock-file-check").onchange = () => {
     document.getElementById("new-file-pass").style.display =
         document.getElementById("lock-file-check").checked ? "inline-block" : "none";
 };
 
+/* ファイル追加 */
 document.getElementById("add-file-btn").onclick = () => {
     const name = document.getElementById("new-file-name").value.trim();
     if (!name) return;
@@ -268,12 +270,23 @@ document.getElementById("add-file-btn").onclick = () => {
     document.getElementById("new-file-pass").style.display = "none";
 };
 
+/* パスワード再設定機能 */
+function resetPass(fileName) {
+    const newPass = prompt("新しいパスワードを入力してください");
+    if (newPass === null || newPass === "") return;
+
+    data[currentGenre][fileName]._pass = newPass;
+    saveData();
+    alert("パスワードを変更しました");
+}
+
 function deleteFile(name) {
     delete data[currentGenre][name];
     saveData();
     renderFiles();
 }
 
+/* ファイルを開く（ロックチェック） */
 function openFile(name) {
     const file = data[currentGenre][name];
 
