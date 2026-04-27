@@ -60,7 +60,6 @@
             font-size: 1em;
         }
 
-        /* ★ 修正：パスワード欄がボタンを覆わないようにする */
         #new-file-pass {
             width: 200px;
         }
@@ -111,6 +110,9 @@
             <input id="new-genre-name" type="text" placeholder="新しいジャンル名">
             <button id="add-genre-btn">追加</button>
         </div>
+
+        <!-- ★追加：ゴミ箱へ -->
+        <button id="open-trash">🗑 ゴミ箱を見る</button>
     </section>
 
     <!-- ② ファイル一覧 -->
@@ -123,8 +125,7 @@
             <input id="new-file-name" type="text" placeholder="新しいファイル名">
 
             <label>
-                <input type="checkbox" id="lock-file-check">
-                ロックする
+                ロックする <input type="checkbox" id="lock-file-check">
             </label>
 
             <input id="new-file-pass" type="password" placeholder="パスワード（任意）" style="display:none;">
@@ -159,10 +160,22 @@
         <button id="back-to-notes">← ノート一覧に戻る</button>
     </section>
 
+    <!-- ★追加：ゴミ箱画面 -->
+    <section id="trash-section" style="display:none;">
+        <h2>🗑 ゴミ箱</h2>
+
+        <div id="trash-list"></div>
+
+        <button id="back-from-trash">← 戻る</button>
+    </section>
+
 </main>
 
 <script>
 let data = JSON.parse(localStorage.getItem("noteAppData") || "{}");
+
+/* ★追加：ゴミ箱領域を初期化 */
+if (!data._trash) data._trash = {};
 
 function saveData() {
     localStorage.setItem("noteAppData", JSON.stringify(data));
@@ -178,13 +191,15 @@ function renderGenres() {
     list.innerHTML = "";
 
     for (let genre in data) {
+        if (genre === "_trash") continue; // ★追加：ゴミ箱は表示しない
+
         const div = document.createElement("div");
         div.className = "item";
         div.innerHTML = `
             <span>${genre}</span>
             <div>
                 <button onclick="openGenre('${genre}')">開く</button>
-                <button onclick="deleteGenre('${genre}')">削除</button>
+                <button onclick="trashGenre('${genre}')">削除</button>
             </div>
         `;
         list.appendChild(div);
@@ -201,7 +216,9 @@ document.getElementById("add-genre-btn").onclick = () => {
     document.getElementById("new-genre-name").value = "";
 };
 
-function deleteGenre(name) {
+/* ★追加：ジャンルをゴミ箱へ */
+function trashGenre(name) {
+    data._trash[name] = data[name];
     delete data[name];
     saveData();
     renderGenres();
@@ -231,18 +248,31 @@ function renderFiles() {
             <span>${file} ${isLocked ? "🔒" : ""}</span>
             <div>
                 <button onclick="openFile('${file}')">開く</button>
-                <button onclick="deleteFile('${file}')">削除</button>
+                ${isLocked ? `<button onclick="resetPass('${file}')">パス変更</button>` : ""}
+                <button onclick="trashFile('${file}')">削除</button>
             </div>
         `;
         list.appendChild(div);
     }
 }
 
+/* ★追加：ファイルをゴミ箱へ */
+function trashFile(name) {
+    if (!data._trash[currentGenre]) data._trash[currentGenre] = {};
+    data._trash[currentGenre][name] = data[currentGenre][name];
+
+    delete data[currentGenre][name];
+    saveData();
+    renderFiles();
+}
+
+/* ロックON/OFFでパス欄表示 */
 document.getElementById("lock-file-check").onchange = () => {
     document.getElementById("new-file-pass").style.display =
         document.getElementById("lock-file-check").checked ? "inline-block" : "none";
 };
 
+/* ファイル追加 */
 document.getElementById("add-file-btn").onclick = () => {
     const name = document.getElementById("new-file-name").value.trim();
     if (!name) return;
@@ -268,10 +298,14 @@ document.getElementById("add-file-btn").onclick = () => {
     document.getElementById("new-file-pass").style.display = "none";
 };
 
-function deleteFile(name) {
-    delete data[currentGenre][name];
+/* パスワード再設定機能 */
+function resetPass(fileName) {
+    const newPass = prompt("新しいパスワードを入力してください");
+    if (newPass === null || newPass === "") return;
+
+    data[currentGenre][fileName]._pass = newPass;
     saveData();
-    renderFiles();
+    alert("パスワードを変更しました");
 }
 
 function openFile(name) {
@@ -313,11 +347,24 @@ function renderNotes() {
             <span>${note}</span>
             <div>
                 <button onclick="editNote('${note}')">編集</button>
-                <button onclick="deleteNote('${note}')">削除</button>
+                <button onclick="trashNote('${note}')">削除</button>
             </div>
         `;
         list.appendChild(div);
     }
+}
+
+/* ★追加：ノートをゴミ箱へ */
+function trashNote(title) {
+    if (!data._trash[currentGenre]) data._trash[currentGenre] = {};
+    if (!data._trash[currentGenre][currentFile]) data._trash[currentGenre][currentFile] = {};
+
+    data._trash[currentGenre][currentFile][title] =
+        data[currentGenre][currentFile][title];
+
+    delete data[currentGenre][currentFile][title];
+    saveData();
+    renderNotes();
 }
 
 document.getElementById("add-note-btn").onclick = () => {
@@ -329,12 +376,6 @@ document.getElementById("add-note-btn").onclick = () => {
     renderNotes();
     document.getElementById("new-note-title").value = "";
 };
-
-function deleteNote(title) {
-    delete data[currentGenre][currentFile][title];
-    saveData();
-    renderNotes();
-}
 
 function editNote(title) {
     currentNote = title;
@@ -362,6 +403,53 @@ document.getElementById("back-to-notes").onclick = () => {
     document.getElementById("editor-section").style.display = "none";
     document.getElementById("note-section").style.display = "block";
 };
+
+/* ★追加：ゴミ箱画面 */
+document.getElementById("open-trash").onclick = () => {
+    document.getElementById("genre-section").style.display = "none";
+    document.getElementById("trash-section").style.display = "block";
+    renderTrash();
+};
+
+document.getElementById("back-from-trash").onclick = () => {
+    document.getElementById("trash-section").style.display = "none";
+    document.getElementById("genre-section").style.display = "block";
+};
+
+/* ★追加：ゴミ箱表示 */
+function renderTrash() {
+    const list = document.getElementById("trash-list");
+    list.innerHTML = "";
+
+    for (let genre in data._trash) {
+        const div = document.createElement("div");
+        div.className = "item";
+
+        div.innerHTML = `
+            <span>ジャンル：${genre}</span>
+            <div>
+                <button onclick="restoreGenre('${genre}')">復元</button>
+                <button onclick="deleteTrashGenre('${genre}')">完全削除</button>
+            </div>
+        `;
+        list.appendChild(div);
+    }
+}
+
+/* ★復元 */
+function restoreGenre(name) {
+    data[name] = data._trash[name];
+    delete data._trash[name];
+    saveData();
+    renderTrash();
+}
+
+/* ★完全削除 */
+function deleteTrashGenre(name) {
+    delete data._trash[name];
+    saveData();
+    renderTrash();
+}
 
 renderGenres();
 </script>
