@@ -454,7 +454,18 @@ function deleteTrashGenre(name) {
 renderGenres();
 </script>
 
-<button onclick="prompt('保存データ', localStorage.noteAppData)">保存データを見る</button>
-    
+</body>
+</html>
+
+/* ★完全削除 */
+function deleteTrashGenre(name) {
+    delete data._trash[name];
+    saveData();
+    renderTrash();
+}
+
+renderGenres();
+</script>
+
 </body>
 </html>
